@@ -1,0 +1,33 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+#pragma once
+
+#include "Sockets.h"
+#include "Networking.h"
+#include "PacketBuffer.h"
+#include <thread>
+
+class UNREALVISION_API TCPServer
+{
+private:
+  FSocket *ListenSocket;
+  FSocket *ClientSocket;
+
+  std::thread Thread;
+  volatile bool Running;
+
+  void ServerLoop();
+  bool ListenConnections();
+
+public:
+  TSharedPtr<PacketBuffer> Buffer;
+
+  TCPServer();
+  ~TCPServer();
+
+  void Start(const int32 ServerPort);
+  void Stop();
+
+  bool HasClient() const;
+
+};
