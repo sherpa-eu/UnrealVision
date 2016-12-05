@@ -1,7 +1,7 @@
 // Copyright 1998-2016 Epic Games, Inc. All Rights Reserved.
 
-#include "UnrealVisionPrivatePCH.h"
 #include "UnrealVision.h"
+#include "UnrealVisionPrivatePCH.h"
 
 #define LOCTEXT_NAMESPACE "FUnrealVisionModule"
 

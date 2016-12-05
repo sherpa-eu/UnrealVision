@@ -30,22 +30,22 @@ public:
 class UNREALVISION_API ScopeTime : private StopTime
 {
 private:
-  const char *Function;
-  const char *Message;
+  FString Function;
+  FString Message;
   const int Line;
 
 public:
-  inline ScopeTime(const char *_Function, const int _Line, const char *_Message) :
+  inline ScopeTime(const FString &_Function, const int _Line, const FString &_Message) :
     StopTime(), Function(_Function), Message(_Message), Line(_Line)
   {
   }
 
   virtual inline ~ScopeTime()
   {
-    OUT_AUX(FG_GREEN, NO_COLOR, "%s: " FG_CYAN "%f ms.", Function, Line, Message, GetTimePassed());
+    OUT_AUX(Display, "%s: %f ms.", *Function, Line, *Message, GetTimePassed());
   }
 };
 
 #ifndef MEASURE_TIME
-#define MEASURE_TIME(MSG) ScopeTime scopeTime(__PRETTY_FUNCTION__, __LINE__, MSG)
+#define MEASURE_TIME(MSG) ScopeTime scopeTime(FString(__FUNCTION__), __LINE__, FString(MSG))
 #endif

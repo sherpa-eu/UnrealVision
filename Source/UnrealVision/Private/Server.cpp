@@ -18,18 +18,18 @@ TCPServer::~TCPServer()
 
 void TCPServer::Start(const int32 ServerPort)
 {
-  OUT_INFO("Starting server.");
+  OUT_INFO(TEXT("Starting server."));
 
   if(!Buffer.IsValid())
   {
-    OUT_ERROR("No package buffer set.");
+    OUT_ERROR(TEXT("No package buffer set."));
     return;
   }
 
   bool bCanBind = false;
   TSharedRef<FInternetAddr> LocalIP = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLocalHostAddr(*GLog, bCanBind);
   LocalIP->SetPort(ServerPort);
-  OUT_INFO("Server address: %s", TCHAR_TO_ANSI(*LocalIP->ToString(true)));
+  OUT_INFO(TEXT("Server address: %s"), *LocalIP->ToString(true));
 
   ListenSocket = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateSocket(NAME_Stream, TEXT("Server Listening Socket"), false);
   ListenSocket->SetReuseAddr(true);
@@ -38,11 +38,11 @@ void TCPServer::Start(const int32 ServerPort)
 
   if(!ListenSocket)
   {
-    OUT_ERROR("Could not create socket.");
+    OUT_ERROR(TEXT("Could not create socket."));
   }
   else
   {
-    OUT_INFO("Socket created");
+    OUT_INFO(TEXT("Socket created"));
   }
 
   Running = true;
@@ -73,7 +73,7 @@ void TCPServer::Stop()
     ListenSocket = nullptr;
   }
 
-  OUT_INFO("Server stopped.");
+  OUT_INFO(TEXT("Server stopped."));
 }
 
 // Called every frame
@@ -89,7 +89,7 @@ void TCPServer::ServerLoop()
 
     if(ClientSocket->GetConnectionState() != ESocketConnectionState::SCS_Connected)
     {
-      OUT_WARN("Client disconnected");
+      OUT_WARN(TEXT("Client disconnected"));
       ClientSocket->Close();
       ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(ClientSocket);
       ClientSocket = nullptr;
@@ -110,7 +110,7 @@ void TCPServer::ServerLoop()
     Buffer->HeaderRead->TimestampSent = Now.ToUnixTimestamp() * 1000000000 + Now.GetMillisecond() * 1000000;
     if(!ClientSocket->Send(Buffer->Read, Buffer->HeaderRead->Size, BytesSent) || BytesSent != Buffer->HeaderRead->Size)
     {
-      OUT_WARN("Not all bytes sent. Client disconnected.");
+      OUT_WARN(TEXT("Not all bytes sent. Client disconnected."));
       ClientSocket->Close();
       ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(ClientSocket);
       ClientSocket = nullptr;
@@ -123,7 +123,7 @@ bool TCPServer::ListenConnections()
 {
   if(!ListenSocket)
   {
-    OUT_ERROR("No socket for listening.");
+    OUT_ERROR(TEXT("No socket for listening."));
     return false;
   }
 
@@ -134,7 +134,7 @@ bool TCPServer::ListenConnections()
   // handle incoming connections
   if(ListenSocket->HasPendingConnection(Pending) && Pending)
   {
-    OUT_INFO("New connection.");
+    OUT_INFO(TEXT("New connection."));
 
     // Destroy previous connection if available
     if(ClientSocket)
@@ -149,14 +149,14 @@ bool TCPServer::ListenConnections()
 
     if(ClientSocket)
     {
-      OUT_INFO("Client connected: %s", TCHAR_TO_ANSI(*RemoteAddress->ToString(true)));
+      OUT_INFO(TEXT("Client connected: %s"), *RemoteAddress->ToString(true));
       if(Buffer.IsValid())
       {
         int32 NewSize = 0;
         ClientSocket->SetSendBufferSize(Buffer->Size, NewSize);
-        if(NewSize < Buffer->Size)
+        if(NewSize < (int32)Buffer->Size)
         {
-          OUT_WARN("Could not set socket buffer size. New size: %d", NewSize);
+          OUT_WARN(TEXT("Could not set socket buffer size. New size: %d"), NewSize);
         }
       }
       return true;

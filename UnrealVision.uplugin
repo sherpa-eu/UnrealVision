@@ -4,7 +4,7 @@
 	"VersionName": "1.0",
 	"FriendlyName": "UnrealVision",
 	"Description": "CameraActor that captures RGB-D data and sends it out over TCP.",
-	"Category": "Other",
+	"Category": "UnrealVision",
 	"CreatedBy": "Thiemo Wiedemeyer",
 	"CreatedByURL": "https://github.com/sherpa-eu/UnrealVision",
 	"DocsURL": "https://github.com/sherpa-eu/UnrealVision",

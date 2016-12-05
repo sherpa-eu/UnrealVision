@@ -7,6 +7,7 @@
 #include "PacketBuffer.h"
 #include <fstream>
 #include <sstream>
+#include <algorithm>
 
 class UNREALVISION_API AVisionActor::PrivateData
 {
@@ -29,7 +30,7 @@ AVisionActor::AVisionActor() : ACameraActor(), Width(960), Height(540), Framerat
   ImageDepth.AddUninitialized(Width * Height);
   ImageObject.AddUninitialized(Width * Height);
 
-  OUT_INFO("Creating color camera.");
+  OUT_INFO(TEXT("Creating color camera."));
   Color = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("ColorCapture"));
   Color->SetupAttachment(RootComponent);
   Color->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
@@ -38,7 +39,7 @@ AVisionActor::AVisionActor() : ACameraActor(), Width(960), Height(540), Framerat
   Color->FOVAngle = FieldOfView;
   //Color->TextureTarget->TargetGamma = GEngine->GetDisplayGamma();
 
-  OUT_INFO("Creating depth camera.");
+  OUT_INFO(TEXT("Creating depth camera."));
   Depth = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("DepthCapture"));
   Depth->SetupAttachment(RootComponent);
   Depth->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
@@ -46,7 +47,7 @@ AVisionActor::AVisionActor() : ACameraActor(), Width(960), Height(540), Framerat
   Depth->TextureTarget->InitAutoFormat(Width, Height);
   Depth->FOVAngle = FieldOfView;
 
-  OUT_INFO("Creating object camera.");
+  OUT_INFO(TEXT("Creating object camera."));
   Object = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("ObjectCapture"));
   Object->SetupAttachment(RootComponent);
   Object->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
@@ -61,7 +62,7 @@ AVisionActor::AVisionActor() : ACameraActor(), Width(960), Height(540), Framerat
   ShowFlagsPostProcess(Depth->ShowFlags);
   ShowFlagsVertexColor(Object->ShowFlags);
 
-  OUT_INFO("Loading materials.");
+  OUT_INFO(TEXT("Loading materials."));
   ConstructorHelpers::FObjectFinder<UMaterial> MaterialDepthFinder(TEXT("Material'/UnrealVision/SceneDepth.SceneDepth'"));
   if(MaterialDepthFinder.Object != nullptr)
   {
@@ -73,7 +74,7 @@ AVisionActor::AVisionActor() : ACameraActor(), Width(960), Height(540), Framerat
     }
   }
   else
-    OUT_ERROR("Could not load material for depth.");
+    OUT_ERROR(TEXT("Could not load material for depth."));
 
   Priv->Buffer = TSharedPtr<PacketBuffer>(new PacketBuffer(Width, Height, FieldOfView));
   Priv->Server.Buffer = Priv->Buffer;
@@ -82,14 +83,14 @@ AVisionActor::AVisionActor() : ACameraActor(), Width(960), Height(540), Framerat
 AVisionActor::~AVisionActor()
 {
   delete Priv;
-  OUT_INFO("VisionActor got destroyed!");
+  OUT_INFO(TEXT("VisionActor got destroyed!"));
 }
 
 // Called when the game starts or when spawned
 void AVisionActor::BeginPlay()
 {
   Super::BeginPlay();
-  OUT_INFO("Begin play!");
+  OUT_INFO(TEXT("Begin play!"));
 
   Priv->Server.Start(ServerPort);
 
@@ -113,7 +114,7 @@ void AVisionActor::BeginPlay()
 void AVisionActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
   Super::EndPlay(EndPlayReason);
-  OUT_INFO("End play!");
+  OUT_INFO(TEXT("End play!"));
 
   Running = false;
 
@@ -183,12 +184,12 @@ void AVisionActor::Tick(float DeltaTime)
   Priv->WaitDepth.unlock();
   double t7 = Timer.GetTimePassed();
 
-  OUT_INFO("ReadImage(Color->TextureTarget, ImageColor): %f", t2 - t1);
-  OUT_INFO("WaitColor.unlock(): %f", t3 - t2);
-  OUT_INFO("ReadImage(Object->TextureTarget, ImageObject): %f", t4 - t3);
-  OUT_INFO("WaitObject.unlock(): %f", t5 - t4);
-  OUT_INFO("ReadImage(Depth->TextureTarget, ImageDepth): %f", t6 - t5);
-  OUT_INFO("WaitDepth.unlock(): %f", t7 - t6);
+  OUT_INFO(TEXT("ReadImage(Color->TextureTarget, ImageColor): %f"), t2 - t1);
+  OUT_INFO(TEXT("WaitColor.unlock(): %f"), t3 - t2);
+  OUT_INFO(TEXT("ReadImage(Object->TextureTarget, ImageObject): %f"), t4 - t3);
+  OUT_INFO(TEXT("WaitObject.unlock(): %f"), t5 - t4);
+  OUT_INFO(TEXT("ReadImage(Depth->TextureTarget, ImageDepth): %f"), t6 - t5);
+  OUT_INFO(TEXT("WaitDepth.unlock(): %f"), t7 - t6);
 }
 
 void AVisionActor::ShowFlagsBasicSetting(FEngineShowFlags &ShowFlags) const
@@ -323,7 +324,7 @@ void AVisionActor::GenerateColors(const uint32_t NumberOfColors)
   const float StepVal = (1.0f - MinVal) / std::max(1.0f, ValCount - 1.0f);
 
   ObjectColors.Reserve(SatCount * ValCount * HueCount);
-  OUT_INFO("Generating %d colors.", SatCount * ValCount * HueCount);
+  OUT_INFO(TEXT("Generating %d colors."), SatCount * ValCount * HueCount);
 
   FLinearColor HSVColor;
   for(uint32_t s = 0; s < SatCount; ++s)
@@ -334,103 +335,92 @@ void AVisionActor::GenerateColors(const uint32_t NumberOfColors)
       HSVColor.B = 1.0f - v * StepVal;
       for(uint32_t h = 0; h < HueCount; ++h)
       {
-        HSVColor.R = ((h * ShiftHue) % MaxHue) * StepHue;
-        ObjectColors.Add(HSVColor.HSVToLinearRGB().ToFColor(false));
-        OUT_INFO("Added color %d: %d %d %d", ObjectColors.Num(), ObjectColors.Last().R, ObjectColors.Last().G, ObjectColors.Last().B);
-      }
-    }
+		HSVColor.R = ((h * ShiftHue) % MaxHue) * StepHue;
+		ObjectColors.Add(HSVColor.HSVToLinearRGB().ToFColor(false));
+		OUT_INFO(TEXT("Added color %d: %d %d %d"), ObjectColors.Num(), ObjectColors.Last().R, ObjectColors.Last().G, ObjectColors.Last().B);
+	  }
+	}
   }
 }
 
 bool AVisionActor::ColorObject(AActor *Actor, const FString &name)
 {
-  const FColor &ObjectColor = ObjectColors[ObjectToColor[name]];
-  TArray<UMeshComponent *> PaintableComponents;
-  Actor->GetComponents<UMeshComponent>(PaintableComponents);
+	const FColor &ObjectColor = ObjectColors[ObjectToColor[name]];
+	TArray<UMeshComponent *> PaintableComponents;
+	Actor->GetComponents<UMeshComponent>(PaintableComponents);
 
-  for(auto MeshComponent : PaintableComponents)
-  {
-    if(MeshComponent == nullptr)
-      continue;
+	for (auto MeshComponent : PaintableComponents)
+	{
+		if (MeshComponent == nullptr)
+			continue;
 
-    if(UStaticMeshComponent *StaticMeshComponent = Cast<UStaticMeshComponent>(MeshComponent))
-    {
-      if(UStaticMesh *StaticMesh = StaticMeshComponent->GetStaticMesh())
-      {
-        uint32 PaintingMeshLODIndex = 0;
-        uint32 NumLODLevel = StaticMesh->RenderData->LODResources.Num();
-        check(NumLODLevel == 1);
-        FStaticMeshLODResources &LODModel = StaticMesh->RenderData->LODResources[PaintingMeshLODIndex];
-        FStaticMeshComponentLODInfo *InstanceMeshLODInfo = NULL;
+		if (UStaticMeshComponent *StaticMeshComponent = Cast<UStaticMeshComponent>(MeshComponent))
+		{
+			if (UStaticMesh *StaticMesh = StaticMeshComponent->GetStaticMesh())
+			{
+				uint32 PaintingMeshLODIndex = 0;
+				uint32 NumLODLevel = StaticMesh->RenderData->LODResources.Num();
+				//check(NumLODLevel == 1);
+				FStaticMeshLODResources &LODModel = StaticMesh->RenderData->LODResources[PaintingMeshLODIndex];
+				FStaticMeshComponentLODInfo *InstanceMeshLODInfo = NULL;
 
-        // PaintingMeshLODIndex + 1 is the minimum requirement, enlarge if not satisfied
-        StaticMeshComponent->SetLODDataCount(PaintingMeshLODIndex + 1, StaticMeshComponent->LODData.Num());
-        InstanceMeshLODInfo = &StaticMeshComponent->LODData[PaintingMeshLODIndex];
+				// PaintingMeshLODIndex + 1 is the minimum requirement, enlarge if not satisfied
+				StaticMeshComponent->SetLODDataCount(PaintingMeshLODIndex + 1, StaticMeshComponent->LODData.Num());
+				InstanceMeshLODInfo = &StaticMeshComponent->LODData[PaintingMeshLODIndex];
 
-        {
-          InstanceMeshLODInfo->OverrideVertexColors = new FColorVertexBuffer;
+				{
+					InstanceMeshLODInfo->OverrideVertexColors = new FColorVertexBuffer;
 
-          FColor FillColor = FColor(255, 255, 255, 255);
-          InstanceMeshLODInfo->OverrideVertexColors->InitFromSingleColor(FColor::White, LODModel.GetNumVertices());
-        }
+					FColor FillColor = FColor(255, 255, 255, 255);
+					InstanceMeshLODInfo->OverrideVertexColors->InitFromSingleColor(FColor::White, LODModel.GetNumVertices());
+				}
 
-        uint32 NumVertices = LODModel.GetNumVertices();
-        check(InstanceMeshLODInfo->OverrideVertexColors);
-        check(NumVertices <= InstanceMeshLODInfo->OverrideVertexColors->GetNumVertices());
+				uint32 NumVertices = LODModel.GetNumVertices();
+				//check(InstanceMeshLODInfo->OverrideVertexColors);
+				//check(NumVertices <= InstanceMeshLODInfo->OverrideVertexColors->GetNumVertices());
 
-        for(uint32 ColorIndex = 0; ColorIndex < NumVertices; ++ColorIndex)
-        {
-          uint32 NumOverrideVertexColors = InstanceMeshLODInfo->OverrideVertexColors->GetNumVertices();
-          uint32 NumPaintedVertices = InstanceMeshLODInfo->PaintedVertices.Num();
-          InstanceMeshLODInfo->OverrideVertexColors->VertexColor(ColorIndex) = ObjectColor;
-        }
-        BeginInitResource(InstanceMeshLODInfo->OverrideVertexColors);
-        StaticMeshComponent->MarkRenderStateDirty();
-      }
-    }
-  }
-  return true;
+				for (uint32 ColorIndex = 0; ColorIndex < NumVertices; ++ColorIndex)
+				{
+					uint32 NumOverrideVertexColors = InstanceMeshLODInfo->OverrideVertexColors->GetNumVertices();
+					uint32 NumPaintedVertices = InstanceMeshLODInfo->PaintedVertices.Num();
+					InstanceMeshLODInfo->OverrideVertexColors->VertexColor(ColorIndex) = ObjectColor;
+				}
+				BeginInitResource(InstanceMeshLODInfo->OverrideVertexColors);
+				StaticMeshComponent->MarkRenderStateDirty();
+			}
+		}
+	}
+	return true;
 }
 
 bool AVisionActor::ColorAllObjects()
 {
-  ULevel *Level = GWorld->GetFirstPlayerController()->GetPawn()->GetLevel();
-  if(Level == nullptr)
-  {
-    OUT_ERROR("Could not get level.");
-    return false;
-  }
+	uint32_t NumberOfActors = 0;
 
-  uint32_t NumberOfActors = 0;
-  for(auto Actor : Level->Actors)
-  {
-    if(Actor && Actor->IsA(AStaticMeshActor::StaticClass()))
-    {
-      ++NumberOfActors;
-    }
-  }
+	for(TActorIterator<AStaticMeshActor> ActItr(GetWorld()); ActItr; ++ActItr)
+	{
+		++NumberOfActors;
+	}
 
-  OUT_INFO("Found %d Actors.", NumberOfActors);
-  GenerateColors(NumberOfActors * 2);
+	OUT_INFO(TEXT("Found %d Actors."), NumberOfActors);
+	GenerateColors(NumberOfActors * 2);
 
-  for(auto Actor : Level->Actors)
-  {
-    if(Actor && Actor->IsA(AStaticMeshActor::StaticClass()))
-    {
-      FString ActorLabel = Actor->GetHumanReadableName();
-      if(!ObjectToColor.Contains(ActorLabel))
-      {
-        check(ColorsUsed < ObjectColors.Num());
-        ObjectToColor.Add(ActorLabel, ColorsUsed);
-        OUT_INFO("Adding color %d for object %s.", ColorsUsed, TCHAR_TO_ANSI(*ActorLabel));
+	for (TActorIterator<AStaticMeshActor> ActItr(GetWorld()); ActItr; ++ActItr)
+	{
+		FString ActorName = ActItr->GetHumanReadableName();
+		if (!ObjectToColor.Contains(ActorName))
+		{
+			check(ColorsUsed < (uint32)ObjectColors.Num());
+			ObjectToColor.Add(ActorName, ColorsUsed);
+			OUT_INFO(TEXT("Adding color %d for object %s."), ColorsUsed, *ActorName);
 
-        ++ColorsUsed;
-      }
+			++ColorsUsed;
+		}
 
-      OUT_INFO("Coloring object %s.", TCHAR_TO_ANSI(*ActorLabel));
-      ColorObject(Actor, ActorLabel);
-    }
-  }
+		OUT_INFO(TEXT("Coloring object %s."), *ActorName);
+		ColorObject(*ActItr, ActorName);
+	}
+
   return true;
 }
 
