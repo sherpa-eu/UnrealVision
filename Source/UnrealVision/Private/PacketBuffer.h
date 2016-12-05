@@ -4,6 +4,7 @@
 
 #include <mutex>
 #include <vector>
+#include <condition_variable>
 
 /**
  *
@@ -55,6 +56,7 @@ private:
   std::vector<uint8> ReadBuffer, WriteBuffer;
   bool IsDataReadable;
   std::mutex LockBuffer, LockRead;
+  std::condition_variable CVWait;
 
 public:
   const uint32 SizeHeader, SizeRGB, SizeFloat;

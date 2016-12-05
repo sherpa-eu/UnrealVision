@@ -99,12 +99,13 @@ void TCPServer::ServerLoop()
     Buffer->StartReading();
     if(!Running)
     {
+		Buffer->DoneReading();
       break;
     }
 
-    //MEASURE_TIME("Transmitting data");
+    MEASURE_TIME("Transmitting data");
     int32 BytesSent = 0;
-    //OUT_INFO("sending images.");
+    OUT_INFO(TEXT("sending images."));
 
     FDateTime Now = FDateTime::UtcNow();
     Buffer->HeaderRead->TimestampSent = Now.ToUnixTimestamp() * 1000000000 + Now.GetMillisecond() * 1000000;

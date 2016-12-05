@@ -35,7 +35,7 @@ PacketBuffer::PacketBuffer(const uint32 Width, const uint32 Height, const float 
   Map = &WriteBuffer[OffsetMap];
   Read = &ReadBuffer[0];
 
-  LockRead.lock();
+  IsDataReadable = false;
 }
 
 void PacketBuffer::StartWriting(const TMap<FString, uint32> &ObjectToColor, const TArray<FColor> &ObjectColors)
@@ -91,13 +91,14 @@ void PacketBuffer::DoneWriting()
   HeaderRead = reinterpret_cast<PacketHeader *>(&ReadBuffer[0]);
   HeaderWrite = reinterpret_cast<PacketHeader *>(&WriteBuffer[0]);
   LockBuffer.unlock();
-  LockRead.try_lock();
-  LockRead.unlock();
+  CVWait.notify_one();
 }
 
 void PacketBuffer::StartReading()
 {
-  LockRead.lock();
+  std::unique_lock<std::mutex> WaitLock(LockRead);
+  CVWait.wait(WaitLock, [this] {return IsDataReadable; });
+
   LockBuffer.lock();
 }
 
@@ -109,6 +110,6 @@ void PacketBuffer::DoneReading()
 
 void PacketBuffer::Release()
 {
-  LockRead.try_lock();
-  LockRead.unlock();
+	IsDataReadable = true;
+	CVWait.notify_one();
 }

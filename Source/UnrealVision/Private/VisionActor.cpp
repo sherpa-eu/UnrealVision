@@ -8,15 +8,20 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
 class UNREALVISION_API AVisionActor::PrivateData
 {
 public:
   TSharedPtr<PacketBuffer> Buffer;
   TCPServer Server;
-  std::mutex WaitColor, WaitDepth, WaitObject;
-  std::mutex DoneColor, DoneObject;
+  std::mutex WaitColor, WaitDepth, WaitObject, WaitDone;
+  std::condition_variable CVColor, CVDepth, CVObject, CVDone;
   std::thread ThreadColor, ThreadDepth, ThreadObject;
+  bool DoColor, DoDepth, DoObject;
+  bool DoneColor, DoneObject;
 };
 
 // Sets default values
@@ -98,12 +103,12 @@ void AVisionActor::BeginPlay()
 
   Running = true;
 
-  Priv->DoneColor.lock();
-  Priv->DoneObject.lock();
+  Priv->DoColor = false;
+  Priv->DoObject = false;
+  Priv->DoDepth = false;
 
-  Priv->WaitColor.lock();
-  Priv->WaitDepth.lock();
-  Priv->WaitObject.lock();
+  Priv->DoneColor = false;
+  Priv->DoneObject = false;
 
   Priv->ThreadColor = std::thread(&AVisionActor::ProcessColor, this);
   Priv->ThreadDepth = std::thread(&AVisionActor::ProcessDepth, this);
@@ -118,16 +123,16 @@ void AVisionActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
   Running = false;
 
-  Priv->WaitColor.unlock();
-  Priv->WaitDepth.unlock();
-  Priv->WaitObject.unlock();
+  Priv->DoColor = true;
+  Priv->DoDepth = true;
+  Priv->DoObject = true;
+  Priv->CVColor.notify_one();
+  Priv->CVDepth.notify_one();
+  Priv->CVObject.notify_one();
 
   Priv->ThreadColor.join();
   Priv->ThreadDepth.join();
   Priv->ThreadObject.join();
-
-  Priv->DoneColor.unlock();
-  Priv->DoneObject.unlock();
 
   Priv->Server.Stop();
 }
@@ -171,17 +176,28 @@ void AVisionActor::Tick(float DeltaTime)
   StopTime Timer;
 
   double t1 = Timer.GetTimePassed();
+  Priv->WaitColor.lock();
   ReadImage(Color->TextureTarget, ImageColor);
-  double t2 = Timer.GetTimePassed();
   Priv->WaitColor.unlock();
+  double t2 = Timer.GetTimePassed();
+  Priv->DoColor = true;
+  Priv->CVColor.notify_one();
+
   double t3 = Timer.GetTimePassed();
+  Priv->WaitObject.lock();
   ReadImage(Object->TextureTarget, ImageObject);
-  double t4 = Timer.GetTimePassed();
   Priv->WaitObject.unlock();
+  double t4 = Timer.GetTimePassed();
+  Priv->DoObject = true;
+  Priv->CVObject.notify_one();
+
   double t5 = Timer.GetTimePassed();
+  Priv->WaitDepth.lock();
   ReadImage(Depth->TextureTarget, ImageDepth);
-  double t6 = Timer.GetTimePassed();
   Priv->WaitDepth.unlock();
+  double t6 = Timer.GetTimePassed();
+  Priv->DoDepth = true;
+  Priv->CVDepth.notify_one();
   double t7 = Timer.GetTimePassed();
 
   OUT_INFO(TEXT("ReadImage(Color->TextureTarget, ImageColor): %f"), t2 - t1);
@@ -428,11 +444,14 @@ void AVisionActor::ProcessColor()
 {
   while(true)
   {
-    Priv->WaitColor.lock();
-    if(!this->Running) break;
-    MEASURE_TIME("Color processing");
-    ToColorImage(ImageColor, Priv->Buffer->Color);
-    Priv->DoneColor.unlock();
+	std::unique_lock<std::mutex> WaitLock(Priv->WaitColor);
+	Priv->CVColor.wait(WaitLock, [this]{return Priv->DoColor; });
+	Priv->DoColor = false;
+	if (!this->Running) break;
+	MEASURE_TIME("Color processing");
+	ToColorImage(ImageColor, Priv->Buffer->Color);
+    Priv->DoneColor = true;
+	Priv->CVDone.notify_one();
   }
 }
 
@@ -440,14 +459,20 @@ void AVisionActor::ProcessDepth()
 {
   while(true)
   {
-    Priv->WaitDepth.lock();
-    if(!this->Running) break;
+	std::unique_lock<std::mutex> WaitLock(Priv->WaitDepth);
+	Priv->CVDepth.wait(WaitLock, [this] {return Priv->DoDepth; });
+	Priv->DoDepth = false;
+	if(!this->Running) break;
     {
       MEASURE_TIME("Depth processing");
       ToDepthImage(ImageDepth, Priv->Buffer->Depth);
     }
-    Priv->DoneColor.lock();
-    Priv->DoneObject.lock();
+
+	std::unique_lock<std::mutex> WaitDoneLock(Priv->WaitDone);
+	Priv->CVDone.wait(WaitDoneLock, [this] {return Priv->DoneColor && Priv->DoneObject; });
+
+	Priv->DoneColor = false;
+	Priv->DoneObject = false;
 
     Priv->Buffer->DoneWriting();
   }
@@ -457,10 +482,13 @@ void AVisionActor::ProcessObject()
 {
   while(true)
   {
-    Priv->WaitObject.lock();
-    if(!this->Running) break;
+	  std::unique_lock<std::mutex> WaitLock(Priv->WaitObject);
+	  Priv->CVObject.wait(WaitLock, [this] {return Priv->DoObject; });
+	  Priv->DoObject = false;
+	  if(!this->Running) break;
     MEASURE_TIME("Object processing");
     ToColorImage(ImageObject, Priv->Buffer->Object);
-    Priv->DoneObject.unlock();
+	Priv->DoneObject = true;
+	Priv->CVDone.notify_one();
   }
 }
