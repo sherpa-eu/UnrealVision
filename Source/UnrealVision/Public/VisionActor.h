@@ -28,6 +28,10 @@ public:
   // Called every frame
   virtual void Tick(float DeltaSeconds) override;
 
+  void SetFramerate(const float _Framerate);
+  void Pause(const bool _Pause = true);
+  bool IsPaused() const;
+
   UPROPERTY(EditAnywhere, Category = "RGB-D Settings")
   uint32 Width;
   UPROPERTY(EditAnywhere, Category = "RGB-D Settings")
@@ -56,7 +60,7 @@ private:
   TArray<FColor> ObjectColors;
   TMap<FString, uint32> ObjectToColor;
   uint32 ColorsUsed;
-  bool Running;
+  bool Running, Paused;
 
   void ShowFlagsBasicSetting(FEngineShowFlags &ShowFlags) const;
   void ShowFlagsLit(FEngineShowFlags &ShowFlags) const;

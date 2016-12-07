@@ -102,6 +102,7 @@ void AVisionActor::BeginPlay()
   ColorAllObjects();
 
   Running = true;
+  Paused = false;
 
   Priv->DoColor = false;
   Priv->DoObject = false;
@@ -142,6 +143,11 @@ void AVisionActor::Tick(float DeltaTime)
 {
   Super::Tick(DeltaTime);
 
+  if(Paused)
+  {
+    return;
+  }
+
   TimePassed += DeltaTime;
   if(TimePassed < FrameTime)
   {
@@ -173,39 +179,40 @@ void AVisionActor::Tick(float DeltaTime)
 
   Priv->Buffer->StartWriting(ObjectToColor, ObjectColors);
 
-  StopTime Timer;
-
-  double t1 = Timer.GetTimePassed();
   Priv->WaitColor.lock();
   ReadImage(Color->TextureTarget, ImageColor);
   Priv->WaitColor.unlock();
-  double t2 = Timer.GetTimePassed();
   Priv->DoColor = true;
   Priv->CVColor.notify_one();
 
-  double t3 = Timer.GetTimePassed();
   Priv->WaitObject.lock();
   ReadImage(Object->TextureTarget, ImageObject);
   Priv->WaitObject.unlock();
-  double t4 = Timer.GetTimePassed();
   Priv->DoObject = true;
   Priv->CVObject.notify_one();
 
-  double t5 = Timer.GetTimePassed();
   Priv->WaitDepth.lock();
   ReadImage(Depth->TextureTarget, ImageDepth);
   Priv->WaitDepth.unlock();
-  double t6 = Timer.GetTimePassed();
   Priv->DoDepth = true;
   Priv->CVDepth.notify_one();
-  double t7 = Timer.GetTimePassed();
+}
 
-  OUT_INFO(TEXT("ReadImage(Color->TextureTarget, ImageColor): %f"), t2 - t1);
-  OUT_INFO(TEXT("WaitColor.unlock(): %f"), t3 - t2);
-  OUT_INFO(TEXT("ReadImage(Object->TextureTarget, ImageObject): %f"), t4 - t3);
-  OUT_INFO(TEXT("WaitObject.unlock(): %f"), t5 - t4);
-  OUT_INFO(TEXT("ReadImage(Depth->TextureTarget, ImageDepth): %f"), t6 - t5);
-  OUT_INFO(TEXT("WaitDepth.unlock(): %f"), t7 - t6);
+void AVisionActor::SetFramerate(const float _Framerate)
+{
+  Framerate = _Framerate;
+  FrameTime = 1.0f / _Framerate;
+  TimePassed = 0;
+}
+
+void AVisionActor::Pause(const bool _Pause)
+{
+  Paused = _Pause;
+}
+
+bool AVisionActor::IsPaused() const
+{
+  return Paused;
 }
 
 void AVisionActor::ShowFlagsBasicSetting(FEngineShowFlags &ShowFlags) const
@@ -351,91 +358,91 @@ void AVisionActor::GenerateColors(const uint32_t NumberOfColors)
       HSVColor.B = 1.0f - v * StepVal;
       for(uint32_t h = 0; h < HueCount; ++h)
       {
-		HSVColor.R = ((h * ShiftHue) % MaxHue) * StepHue;
-		ObjectColors.Add(HSVColor.HSVToLinearRGB().ToFColor(false));
-		OUT_INFO(TEXT("Added color %d: %d %d %d"), ObjectColors.Num(), ObjectColors.Last().R, ObjectColors.Last().G, ObjectColors.Last().B);
-	  }
-	}
+        HSVColor.R = ((h * ShiftHue) % MaxHue) * StepHue;
+        ObjectColors.Add(HSVColor.HSVToLinearRGB().ToFColor(false));
+        OUT_INFO(TEXT("Added color %d: %d %d %d"), ObjectColors.Num(), ObjectColors.Last().R, ObjectColors.Last().G, ObjectColors.Last().B);
+      }
+    }
   }
 }
 
 bool AVisionActor::ColorObject(AActor *Actor, const FString &name)
 {
-	const FColor &ObjectColor = ObjectColors[ObjectToColor[name]];
-	TArray<UMeshComponent *> PaintableComponents;
-	Actor->GetComponents<UMeshComponent>(PaintableComponents);
+  const FColor &ObjectColor = ObjectColors[ObjectToColor[name]];
+  TArray<UMeshComponent *> PaintableComponents;
+  Actor->GetComponents<UMeshComponent>(PaintableComponents);
 
-	for (auto MeshComponent : PaintableComponents)
-	{
-		if (MeshComponent == nullptr)
-			continue;
+  for(auto MeshComponent : PaintableComponents)
+  {
+    if(MeshComponent == nullptr)
+      continue;
 
-		if (UStaticMeshComponent *StaticMeshComponent = Cast<UStaticMeshComponent>(MeshComponent))
-		{
-			if (UStaticMesh *StaticMesh = StaticMeshComponent->GetStaticMesh())
-			{
-				uint32 PaintingMeshLODIndex = 0;
-				uint32 NumLODLevel = StaticMesh->RenderData->LODResources.Num();
-				//check(NumLODLevel == 1);
-				FStaticMeshLODResources &LODModel = StaticMesh->RenderData->LODResources[PaintingMeshLODIndex];
-				FStaticMeshComponentLODInfo *InstanceMeshLODInfo = NULL;
+    if(UStaticMeshComponent *StaticMeshComponent = Cast<UStaticMeshComponent>(MeshComponent))
+    {
+      if(UStaticMesh *StaticMesh = StaticMeshComponent->GetStaticMesh())
+      {
+        uint32 PaintingMeshLODIndex = 0;
+        uint32 NumLODLevel = StaticMesh->RenderData->LODResources.Num();
+        //check(NumLODLevel == 1);
+        FStaticMeshLODResources &LODModel = StaticMesh->RenderData->LODResources[PaintingMeshLODIndex];
+        FStaticMeshComponentLODInfo *InstanceMeshLODInfo = NULL;
 
-				// PaintingMeshLODIndex + 1 is the minimum requirement, enlarge if not satisfied
-				StaticMeshComponent->SetLODDataCount(PaintingMeshLODIndex + 1, StaticMeshComponent->LODData.Num());
-				InstanceMeshLODInfo = &StaticMeshComponent->LODData[PaintingMeshLODIndex];
+        // PaintingMeshLODIndex + 1 is the minimum requirement, enlarge if not satisfied
+        StaticMeshComponent->SetLODDataCount(PaintingMeshLODIndex + 1, StaticMeshComponent->LODData.Num());
+        InstanceMeshLODInfo = &StaticMeshComponent->LODData[PaintingMeshLODIndex];
 
-				{
-					InstanceMeshLODInfo->OverrideVertexColors = new FColorVertexBuffer;
+        {
+          InstanceMeshLODInfo->OverrideVertexColors = new FColorVertexBuffer;
 
-					FColor FillColor = FColor(255, 255, 255, 255);
-					InstanceMeshLODInfo->OverrideVertexColors->InitFromSingleColor(FColor::White, LODModel.GetNumVertices());
-				}
+          FColor FillColor = FColor(255, 255, 255, 255);
+          InstanceMeshLODInfo->OverrideVertexColors->InitFromSingleColor(FColor::White, LODModel.GetNumVertices());
+        }
 
-				uint32 NumVertices = LODModel.GetNumVertices();
-				//check(InstanceMeshLODInfo->OverrideVertexColors);
-				//check(NumVertices <= InstanceMeshLODInfo->OverrideVertexColors->GetNumVertices());
+        uint32 NumVertices = LODModel.GetNumVertices();
+        //check(InstanceMeshLODInfo->OverrideVertexColors);
+        //check(NumVertices <= InstanceMeshLODInfo->OverrideVertexColors->GetNumVertices());
 
-				for (uint32 ColorIndex = 0; ColorIndex < NumVertices; ++ColorIndex)
-				{
-					uint32 NumOverrideVertexColors = InstanceMeshLODInfo->OverrideVertexColors->GetNumVertices();
-					uint32 NumPaintedVertices = InstanceMeshLODInfo->PaintedVertices.Num();
-					InstanceMeshLODInfo->OverrideVertexColors->VertexColor(ColorIndex) = ObjectColor;
-				}
-				BeginInitResource(InstanceMeshLODInfo->OverrideVertexColors);
-				StaticMeshComponent->MarkRenderStateDirty();
-			}
-		}
-	}
-	return true;
+        for(uint32 ColorIndex = 0; ColorIndex < NumVertices; ++ColorIndex)
+        {
+          uint32 NumOverrideVertexColors = InstanceMeshLODInfo->OverrideVertexColors->GetNumVertices();
+          uint32 NumPaintedVertices = InstanceMeshLODInfo->PaintedVertices.Num();
+          InstanceMeshLODInfo->OverrideVertexColors->VertexColor(ColorIndex) = ObjectColor;
+        }
+        BeginInitResource(InstanceMeshLODInfo->OverrideVertexColors);
+        StaticMeshComponent->MarkRenderStateDirty();
+      }
+    }
+  }
+  return true;
 }
 
 bool AVisionActor::ColorAllObjects()
 {
-	uint32_t NumberOfActors = 0;
+  uint32_t NumberOfActors = 0;
 
-	for(TActorIterator<AStaticMeshActor> ActItr(GetWorld()); ActItr; ++ActItr)
-	{
-		++NumberOfActors;
-	}
+  for(TActorIterator<AStaticMeshActor> ActItr(GetWorld()); ActItr; ++ActItr)
+  {
+    ++NumberOfActors;
+  }
 
-	OUT_INFO(TEXT("Found %d Actors."), NumberOfActors);
-	GenerateColors(NumberOfActors * 2);
+  OUT_INFO(TEXT("Found %d Actors."), NumberOfActors);
+  GenerateColors(NumberOfActors * 2);
 
-	for (TActorIterator<AStaticMeshActor> ActItr(GetWorld()); ActItr; ++ActItr)
-	{
-		FString ActorName = ActItr->GetHumanReadableName();
-		if (!ObjectToColor.Contains(ActorName))
-		{
-			check(ColorsUsed < (uint32)ObjectColors.Num());
-			ObjectToColor.Add(ActorName, ColorsUsed);
-			OUT_INFO(TEXT("Adding color %d for object %s."), ColorsUsed, *ActorName);
+  for(TActorIterator<AStaticMeshActor> ActItr(GetWorld()); ActItr; ++ActItr)
+  {
+    FString ActorName = ActItr->GetHumanReadableName();
+    if(!ObjectToColor.Contains(ActorName))
+    {
+      check(ColorsUsed < (uint32)ObjectColors.Num());
+      ObjectToColor.Add(ActorName, ColorsUsed);
+      OUT_INFO(TEXT("Adding color %d for object %s."), ColorsUsed, *ActorName);
 
-			++ColorsUsed;
-		}
+      ++ColorsUsed;
+    }
 
-		OUT_INFO(TEXT("Coloring object %s."), *ActorName);
-		ColorObject(*ActItr, ActorName);
-	}
+    OUT_INFO(TEXT("Coloring object %s."), *ActorName);
+    ColorObject(*ActItr, ActorName);
+  }
 
   return true;
 }
@@ -444,14 +451,13 @@ void AVisionActor::ProcessColor()
 {
   while(true)
   {
-	std::unique_lock<std::mutex> WaitLock(Priv->WaitColor);
-	Priv->CVColor.wait(WaitLock, [this]{return Priv->DoColor; });
-	Priv->DoColor = false;
-	if (!this->Running) break;
-	MEASURE_TIME("Color processing");
-	ToColorImage(ImageColor, Priv->Buffer->Color);
+    std::unique_lock<std::mutex> WaitLock(Priv->WaitColor);
+    Priv->CVColor.wait(WaitLock, [this] {return Priv->DoColor; });
+    Priv->DoColor = false;
+    if(!this->Running) break;
+    ToColorImage(ImageColor, Priv->Buffer->Color);
     Priv->DoneColor = true;
-	Priv->CVDone.notify_one();
+    Priv->CVDone.notify_one();
   }
 }
 
@@ -459,20 +465,17 @@ void AVisionActor::ProcessDepth()
 {
   while(true)
   {
-	std::unique_lock<std::mutex> WaitLock(Priv->WaitDepth);
-	Priv->CVDepth.wait(WaitLock, [this] {return Priv->DoDepth; });
-	Priv->DoDepth = false;
-	if(!this->Running) break;
-    {
-      MEASURE_TIME("Depth processing");
-      ToDepthImage(ImageDepth, Priv->Buffer->Depth);
-    }
+    std::unique_lock<std::mutex> WaitLock(Priv->WaitDepth);
+    Priv->CVDepth.wait(WaitLock, [this] {return Priv->DoDepth; });
+    Priv->DoDepth = false;
+    if(!this->Running) break;
+    ToDepthImage(ImageDepth, Priv->Buffer->Depth);
 
-	std::unique_lock<std::mutex> WaitDoneLock(Priv->WaitDone);
-	Priv->CVDone.wait(WaitDoneLock, [this] {return Priv->DoneColor && Priv->DoneObject; });
+    std::unique_lock<std::mutex> WaitDoneLock(Priv->WaitDone);
+    Priv->CVDone.wait(WaitDoneLock, [this] {return Priv->DoneColor && Priv->DoneObject; });
 
-	Priv->DoneColor = false;
-	Priv->DoneObject = false;
+    Priv->DoneColor = false;
+    Priv->DoneObject = false;
 
     Priv->Buffer->DoneWriting();
   }
@@ -482,13 +485,12 @@ void AVisionActor::ProcessObject()
 {
   while(true)
   {
-	  std::unique_lock<std::mutex> WaitLock(Priv->WaitObject);
-	  Priv->CVObject.wait(WaitLock, [this] {return Priv->DoObject; });
-	  Priv->DoObject = false;
-	  if(!this->Running) break;
-    MEASURE_TIME("Object processing");
+    std::unique_lock<std::mutex> WaitLock(Priv->WaitObject);
+    Priv->CVObject.wait(WaitLock, [this] {return Priv->DoObject; });
+    Priv->DoObject = false;
+    if(!this->Running) break;
     ToColorImage(ImageObject, Priv->Buffer->Object);
-	Priv->DoneObject = true;
-	Priv->CVDone.notify_one();
+    Priv->DoneObject = true;
+    Priv->CVDone.notify_one();
   }
 }

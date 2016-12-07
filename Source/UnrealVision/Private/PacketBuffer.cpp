@@ -110,6 +110,6 @@ void PacketBuffer::DoneReading()
 
 void PacketBuffer::Release()
 {
-	IsDataReadable = true;
-	CVWait.notify_one();
+  IsDataReadable = true;
+  CVWait.notify_one();
 }
