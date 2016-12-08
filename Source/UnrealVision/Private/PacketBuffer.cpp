@@ -4,7 +4,7 @@
 #include "PacketBuffer.h"
 
 PacketBuffer::PacketBuffer(const uint32 Width, const uint32 Height, const float FieldOfView) :
-  IsDataReadable(false), SizeHeader(sizeof(PacketHeader)), SizeRGB(Width *Height * 3 * sizeof(uint8)), SizeFloat(Width *Height *sizeof(float)),
+  IsDataReadable(false), SizeHeader(sizeof(PacketHeader)), SizeRGB(Width *Height * 3 * sizeof(uint8)), SizeFloat(Width *Height *sizeof(FFloat16)),
   OffsetColor(SizeHeader), OffsetDepth(OffsetColor + SizeRGB), OffsetObject(OffsetDepth + SizeFloat), OffsetMap(OffsetObject + SizeRGB),
   Size(SizeHeader + SizeRGB + SizeFloat + SizeRGB)
 {

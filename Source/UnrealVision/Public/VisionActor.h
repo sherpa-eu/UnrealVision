@@ -41,8 +41,6 @@ public:
   UPROPERTY(EditAnywhere, Category = "RGB-D Settings")
   float FieldOfView;
   UPROPERTY(EditAnywhere, Category = "RGB-D Settings")
-  float MaxDepth;
-  UPROPERTY(EditAnywhere, Category = "RGB-D Settings")
   int32 ServerPort;
 
 private:

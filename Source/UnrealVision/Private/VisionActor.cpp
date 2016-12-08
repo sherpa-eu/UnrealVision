@@ -25,7 +25,7 @@ public:
 };
 
 // Sets default values
-AVisionActor::AVisionActor() : ACameraActor(), Width(960), Height(540), Framerate(1), FieldOfView(90.0), MaxDepth(10000.0f), ServerPort(10000), FrameTime(1.0f / Framerate), TimePassed(0), ColorsUsed(0)
+AVisionActor::AVisionActor() : ACameraActor(), Width(960), Height(540), Framerate(1), FieldOfView(90.0), ServerPort(10000), FrameTime(1.0f / Framerate), TimePassed(0), ColorsUsed(0)
 {
   Priv = new PrivateData();
   // Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
@@ -74,7 +74,6 @@ AVisionActor::AVisionActor() : ACameraActor(), Width(960), Height(540), Framerat
     MaterialDepthInstance = UMaterialInstanceDynamic::Create(MaterialDepthFinder.Object, Depth);
     if(MaterialDepthInstance != nullptr)
     {
-      MaterialDepthInstance->SetScalarParameterValue(FName(TEXT("MaxDepth")), MaxDepth);
       Depth->PostProcessSettings.AddBlendable(MaterialDepthInstance, 1);
     }
   }
@@ -296,13 +295,11 @@ void AVisionActor::ToDepthImage(const TArray<FFloat16Color> &ImageData, uint8 *B
 {
   //MEASURE_TIME("Convert FFloat16Color to depth");
   const FFloat16Color *itI = ImageData.GetData();
-  float *itO = reinterpret_cast<float *>(Bytes);
-  const float ToMeters = MaxDepth * 0.01f;
+  FFloat16 *itO = reinterpret_cast<FFloat16*>(Bytes);
 
   for(size_t i = 0; i < ImageData.Num(); ++i, ++itI, ++itO)
   {
-    const FFloat16Color &color = *itI;
-    *itO = (float)color.R * ToMeters;
+    *itO = itI->R;
   }
   return;
 }
