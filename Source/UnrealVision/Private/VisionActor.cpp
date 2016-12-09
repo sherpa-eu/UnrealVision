@@ -270,36 +270,32 @@ void AVisionActor::ShowFlagsVertexColor(FEngineShowFlags &ShowFlags) const
 
 void AVisionActor::ReadImage(UTextureRenderTarget2D *RenderTarget, TArray<FFloat16Color> &ImageData) const
 {
-  //MEASURE_TIME("Reading float image from buffer");
   FTextureRenderTargetResource *RenderTargetResource = RenderTarget->GameThread_GetRenderTargetResource();
   RenderTargetResource->ReadFloat16Pixels(ImageData);
 }
 
 void AVisionActor::ToColorImage(const TArray<FFloat16Color> &ImageData, uint8 *Bytes) const
 {
-  //MEASURE_TIME("Convert FColor to color");
   const FFloat16Color *itI = ImageData.GetData();
-  uint8 *itO = Bytes;
+  uint8_t *itO = Bytes;
 
   for(size_t i = 0; i < ImageData.Num(); ++i, ++itI, ++itO)
   {
-    const FFloat16Color &color = *itI;
-    *itO = (float)color.B * 255.f;
-    *++itO = (float)color.G * 255.f;
-    *++itO = (float)color.R * 255.f;
+    *itO = (uint8_t)((float)itI->B * 255.f);
+    *++itO = (uint8_t)((float)itI->G * 255.f);
+    *++itO = (uint8_t)((float)itI->R * 255.f);
   }
   return;
 }
 
 void AVisionActor::ToDepthImage(const TArray<FFloat16Color> &ImageData, uint8 *Bytes) const
 {
-  //MEASURE_TIME("Convert FFloat16Color to depth");
   const FFloat16Color *itI = ImageData.GetData();
-  FFloat16 *itO = reinterpret_cast<FFloat16*>(Bytes);
+  uint16_t *itO = reinterpret_cast<uint16_t *>(Bytes);
 
   for(size_t i = 0; i < ImageData.Num(); ++i, ++itI, ++itO)
   {
-    *itO = itI->R;
+    *itO = itI->R.Encoded;
   }
   return;
 }
@@ -453,6 +449,7 @@ void AVisionActor::ProcessColor()
     Priv->DoColor = false;
     if(!this->Running) break;
     ToColorImage(ImageColor, Priv->Buffer->Color);
+
     Priv->DoneColor = true;
     Priv->CVDone.notify_one();
   }
@@ -487,6 +484,7 @@ void AVisionActor::ProcessObject()
     Priv->DoObject = false;
     if(!this->Running) break;
     ToColorImage(ImageObject, Priv->Buffer->Object);
+
     Priv->DoneObject = true;
     Priv->CVDone.notify_one();
   }
