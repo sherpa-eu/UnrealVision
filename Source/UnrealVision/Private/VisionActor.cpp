@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <thread>
 #include <mutex>
+#include <cmath>
 #include <condition_variable>
 
 class UNREALVISION_API AVisionActor::PrivateData
@@ -281,9 +282,9 @@ void AVisionActor::ToColorImage(const TArray<FFloat16Color> &ImageData, uint8 *B
 
   for(size_t i = 0; i < ImageData.Num(); ++i, ++itI, ++itO)
   {
-    *itO = (uint8_t)((float)itI->B * 255.f);
-    *++itO = (uint8_t)((float)itI->G * 255.f);
-    *++itO = (uint8_t)((float)itI->R * 255.f);
+    *itO = (uint8_t)std::round((float)itI->B * 255.f);
+    *++itO = (uint8_t)std::round((float)itI->G * 255.f);
+    *++itO = (uint8_t)std::round((float)itI->R * 255.f);
   }
   return;
 }
