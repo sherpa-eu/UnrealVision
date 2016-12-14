@@ -20,12 +20,14 @@ void TCPServer::Start(const int32 ServerPort)
 {
   OUT_INFO(TEXT("Starting server."));
 
+  // Check if buffer is set
   if(!Buffer.IsValid())
   {
     OUT_ERROR(TEXT("No package buffer set."));
     return;
   }
 
+  // Setting ip address for listening socket
   bool bCanBind = false;
   TSharedRef<FInternetAddr> LocalIP = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLocalHostAddr(*GLog, bCanBind);
   LocalIP->SetPort(ServerPort);
@@ -53,12 +55,14 @@ void TCPServer::Stop()
 {
   if(Running)
   {
+    // Release buffer and wait for thread to stop
     Running = false;
     Buffer->Release();
     Thread.join();
     Buffer->DoneReading();
   }
 
+  // Disconnect and close client socket
   if(ClientSocket)
   {
     ClientSocket->Close();
@@ -66,6 +70,7 @@ void TCPServer::Stop()
     ClientSocket = nullptr;
   }
 
+  // Disconnect and close listening socket
   if(ListenSocket)
   {
     ListenSocket->Close();
@@ -76,17 +81,18 @@ void TCPServer::Stop()
   OUT_INFO(TEXT("Server stopped."));
 }
 
-// Called every frame
 void TCPServer::ServerLoop()
 {
   while(Running)
   {
+    // Check for connection of wait for connection
     if(!ClientSocket && !ListenConnections())
     {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
       continue;
     }
 
+    // Check if connection is still good
     if(ClientSocket->GetConnectionState() != ESocketConnectionState::SCS_Connected)
     {
       OUT_WARN(TEXT("Client disconnected"));
@@ -96,10 +102,11 @@ void TCPServer::ServerLoop()
       continue;
     }
 
+    // Everything is fine, wait for buffer to be readable
     Buffer->StartReading();
     if(!Running)
     {
-		Buffer->DoneReading();
+      Buffer->DoneReading();
       break;
     }
 
@@ -107,6 +114,7 @@ void TCPServer::ServerLoop()
     int32 BytesSent = 0;
     OUT_INFO(TEXT("sending images."));
 
+    // Send data to client
     FDateTime Now = FDateTime::UtcNow();
     Buffer->HeaderRead->TimestampSent = Now.ToUnixTimestamp() * 1000000000 + Now.GetMillisecond() * 1000000;
     if(!ClientSocket->Send(Buffer->Read, Buffer->HeaderRead->Size, BytesSent) || BytesSent != Buffer->HeaderRead->Size)
@@ -116,6 +124,7 @@ void TCPServer::ServerLoop()
       ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(ClientSocket);
       ClientSocket = nullptr;
     }
+    // Release buffer
     Buffer->DoneReading();
   }
 }

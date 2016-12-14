@@ -20,6 +20,7 @@ private:
   bool ListenConnections();
 
 public:
+  // This pointer has to be set before starting the server
   TSharedPtr<PacketBuffer> Buffer;
 
   TCPServer();

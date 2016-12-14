@@ -13,6 +13,8 @@
 #include <cmath>
 #include <condition_variable>
 
+
+// Private data container so that internal structures are not visible to the outside
 class UNREALVISION_API AVisionActor::PrivateData
 {
 public:
@@ -29,9 +31,11 @@ public:
 AVisionActor::AVisionActor() : ACameraActor(), Width(960), Height(540), Framerate(1), FieldOfView(90.0), ServerPort(10000), FrameTime(1.0f / Framerate), TimePassed(0), ColorsUsed(0)
 {
   Priv = new PrivateData();
-  // Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 
+  // Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
   PrimaryActorTick.bCanEverTick = true;
+
+  // Initializing buffers for reading images from the GPU
   ImageColor.AddUninitialized(Width * Height);
   ImageDepth.AddUninitialized(Width * Height);
   ImageObject.AddUninitialized(Width * Height);
@@ -64,6 +68,7 @@ AVisionActor::AVisionActor() : ACameraActor(), Width(960), Height(540), Framerat
   GetCameraComponent()->FieldOfView = FieldOfView;
   GetCameraComponent()->AspectRatio = Width / (float)Height;
 
+  // Setting flags for each camera
   ShowFlagsLit(Color->ShowFlags);
   ShowFlagsPostProcess(Depth->ShowFlags);
   ShowFlagsVertexColor(Object->ShowFlags);
@@ -81,6 +86,7 @@ AVisionActor::AVisionActor() : ACameraActor(), Width(960), Height(540), Framerat
   else
     OUT_ERROR(TEXT("Could not load material for depth."));
 
+  // Creating double buffer and setting the pointer of the server object
   Priv->Buffer = TSharedPtr<PacketBuffer>(new PacketBuffer(Width, Height, FieldOfView));
   Priv->Server.Buffer = Priv->Buffer;
 }
@@ -97,8 +103,10 @@ void AVisionActor::BeginPlay()
   Super::BeginPlay();
   OUT_INFO(TEXT("Begin play!"));
 
+  // Starting server
   Priv->Server.Start(ServerPort);
 
+  // Coloring all objects
   ColorAllObjects();
 
   Running = true;
@@ -111,6 +119,7 @@ void AVisionActor::BeginPlay()
   Priv->DoneColor = false;
   Priv->DoneObject = false;
 
+  // Starting threads to process image data
   Priv->ThreadColor = std::thread(&AVisionActor::ProcessColor, this);
   Priv->ThreadDepth = std::thread(&AVisionActor::ProcessDepth, this);
   Priv->ThreadObject = std::thread(&AVisionActor::ProcessObject, this);
@@ -124,6 +133,7 @@ void AVisionActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
   Running = false;
 
+  // Stopping processing threads
   Priv->DoColor = true;
   Priv->DoDepth = true;
   Priv->DoObject = true;
@@ -143,11 +153,13 @@ void AVisionActor::Tick(float DeltaTime)
 {
   Super::Tick(DeltaTime);
 
+  // Check if paused
   if(Paused)
   {
     return;
   }
 
+  // Check for framerate
   TimePassed += DeltaTime;
   if(TimePassed < FrameTime)
   {
@@ -158,6 +170,7 @@ void AVisionActor::Tick(float DeltaTime)
 
   UpdateComponentTransforms();
 
+  // Check if client is connected
   if(!Priv->Server.HasClient())
   {
     return;
@@ -168,7 +181,7 @@ void AVisionActor::Tick(float DeltaTime)
 
   FVector Translation = GetActorLocation();
   FQuat Rotation = GetActorQuat();
-  // Convert to meters
+  // Convert to meters and ROS coordinate system
   Priv->Buffer->HeaderWrite->Translation.X = Translation.X / 100.0f;
   Priv->Buffer->HeaderWrite->Translation.Y = -Translation.Y / 100.0f;
   Priv->Buffer->HeaderWrite->Translation.Z = Translation.Z / 100.0f;
@@ -177,20 +190,28 @@ void AVisionActor::Tick(float DeltaTime)
   Priv->Buffer->HeaderWrite->Rotation.Z = -Rotation.Z;
   Priv->Buffer->HeaderWrite->Rotation.W = Rotation.W;
 
+  // Start writing to buffer
   Priv->Buffer->StartWriting(ObjectToColor, ObjectColors);
 
+  // Read color image and notify processing thread
   Priv->WaitColor.lock();
   ReadImage(Color->TextureTarget, ImageColor);
   Priv->WaitColor.unlock();
   Priv->DoColor = true;
   Priv->CVColor.notify_one();
 
+  // Read object image and notify processing thread
   Priv->WaitObject.lock();
   ReadImage(Object->TextureTarget, ImageObject);
   Priv->WaitObject.unlock();
   Priv->DoObject = true;
   Priv->CVObject.notify_one();
 
+  /* Read depth image and notify processing thread. Depth processing is called last,
+   * because the color image processing thread take more time so they can already begin.
+   * The depth processing thread will wait for the others to be finished and then releases
+   * the buffer.
+   */
   Priv->WaitDepth.lock();
   ReadImage(Depth->TextureTarget, ImageDepth);
   Priv->WaitDepth.unlock();
@@ -280,6 +301,7 @@ void AVisionActor::ToColorImage(const TArray<FFloat16Color> &ImageData, uint8 *B
   const FFloat16Color *itI = ImageData.GetData();
   uint8_t *itO = Bytes;
 
+  // Converts Float colors to bytes
   for(size_t i = 0; i < ImageData.Num(); ++i, ++itI, ++itO)
   {
     *itO = (uint8_t)std::round((float)itI->B * 255.f);
@@ -294,6 +316,7 @@ void AVisionActor::ToDepthImage(const TArray<FFloat16Color> &ImageData, uint8 *B
   const FFloat16Color *itI = ImageData.GetData();
   uint16_t *itO = reinterpret_cast<uint16_t *>(Bytes);
 
+  // Just copies the encoded Float16 values
   for(size_t i = 0; i < ImageData.Num(); ++i, ++itI, ++itO)
   {
     *itO = itI->R.Encoded;
@@ -303,16 +326,20 @@ void AVisionActor::ToDepthImage(const TArray<FFloat16Color> &ImageData, uint8 *B
 
 void AVisionActor::StoreImage(const uint8 *ImageData, const uint32 Size, const char *Name) const
 {
-  //MEASURE_TIME("Storing image to disk");
   std::ofstream File(Name, std::ofstream::out | std::ofstream::binary | std::ofstream::trunc);
   File.write(reinterpret_cast<const char *>(ImageData), Size);
   File.close();
   return;
 }
 
+/* Generates at least NumberOfColors different colors.
+ * It takes MaxHue different Hue values and additional steps ind Value and Saturation to get
+ * the number of needed colors.
+ */
 void AVisionActor::GenerateColors(const uint32_t NumberOfColors)
 {
   const int32_t MaxHue = 50;
+  // It shifts the next Hue value used, so that colors next to each other are not very similar. This is just important for humans
   const int32_t ShiftHue = 21;
   const float MinSat = 0.65;
   const float MinVal = 0.65;
@@ -321,6 +348,7 @@ void AVisionActor::GenerateColors(const uint32_t NumberOfColors)
   uint32_t SatCount = 1;
   uint32_t ValCount = 1;
 
+  // Compute how many different Saturations and Values are needed
   int32_t left = std::max<int32_t>(0, NumberOfColors - HueCount);
   while(left > 0)
   {
@@ -466,12 +494,14 @@ void AVisionActor::ProcessDepth()
     if(!this->Running) break;
     ToDepthImage(ImageDepth, Priv->Buffer->Depth);
 
+    // Wait for both other processing threads to be done.
     std::unique_lock<std::mutex> WaitDoneLock(Priv->WaitDone);
     Priv->CVDone.wait(WaitDoneLock, [this] {return Priv->DoneColor && Priv->DoneObject; });
 
     Priv->DoneColor = false;
     Priv->DoneObject = false;
 
+    // Complete Buffer
     Priv->Buffer->DoneWriting();
   }
 }

@@ -28,8 +28,11 @@ public:
   // Called every frame
   virtual void Tick(float DeltaSeconds) override;
 
+  // Change the framerate on the fly
   void SetFramerate(const float _Framerate);
+  // Pause/resume camera
   void Pause(const bool _Pause = true);
+  // Check if paused
   bool IsPaused() const;
 
   UPROPERTY(EditAnywhere, Category = "RGB-D Settings")
@@ -44,12 +47,15 @@ public:
   int32 ServerPort;
 
 private:
+  // Private data container
   class PrivateData;
   PrivateData *Priv;
 
+  // The cameras for color, depth and objects;
   USceneCaptureComponent2D *Color;
   USceneCaptureComponent2D *Depth;
   USceneCaptureComponent2D *Object;
+
   UMaterialInstanceDynamic *MaterialDepthInstance;
 
   float FrameTime, TimePassed;

@@ -11,9 +11,11 @@ PacketBuffer::PacketBuffer(const uint32 Width, const uint32 Height, const float 
   ReadBuffer.resize(Size + 1024 * 1024);
   WriteBuffer.resize(Size + 1024 * 1024);
 
+  // Create relative FOV for each axis
   const float FOVX = Height > Width ? FieldOfView * Width / Height : FieldOfView;
   const float FOVY = Width > Height ? FieldOfView * Height / Width : FieldOfView;
 
+  // Setting header information that do not change
   HeaderRead = reinterpret_cast<PacketHeader *>(&ReadBuffer[0]);
   HeaderRead->Size = Size;
   HeaderRead->SizeHeader = SizeHeader;
@@ -29,6 +31,7 @@ PacketBuffer::PacketBuffer(const uint32 Width, const uint32 Height, const float 
   HeaderWrite->FieldOfViewX = FOVX;
   HeaderWrite->FieldOfViewY = FOVY;
 
+  // Setting the pointers to the data
   Color = &WriteBuffer[OffsetColor];
   Depth = &WriteBuffer[OffsetDepth];
   Object = &WriteBuffer[OffsetObject];
@@ -44,15 +47,18 @@ void PacketBuffer::StartWriting(const TMap<FString, uint32> &ObjectToColor, cons
   uint32_t MapSize = 0;
   uint8_t *It = Map;
 
+  // Writing the obejct color map entries to the end of the packet
   for(auto &Elem : ObjectToColor)
   {
     const uint32_t NameSize = Elem.Key.Len();
     const uint32_t ElemSize = sizeof(uint32_t) + 3 * sizeof(uint8_t) + NameSize;
     const FColor &ObjectColor = ObjectColors[Elem.Value];
 
+    // Resize the internal buffer if necessary
     if(Size + MapSize + ElemSize > WriteBuffer.size())
     {
       WriteBuffer.resize(WriteBuffer.size() + 1024 * 1024);
+      // Update pointers
       Color = &WriteBuffer[OffsetColor];
       Depth = &WriteBuffer[OffsetDepth];
       Object = &WriteBuffer[OffsetObject];
@@ -67,6 +73,7 @@ void PacketBuffer::StartWriting(const TMap<FString, uint32> &ObjectToColor, cons
     Entry->G = ObjectColor.G;
     Entry->B = ObjectColor.B;
 
+    // Convert name to ANSI and copy it to the packet (no trailing '\0', length is indirectly given by the entry size)
     const char *Name = TCHAR_TO_ANSI(*Elem.Key);
     memcpy(&Entry->FirstChar, Name, NameSize);
 
@@ -80,6 +87,7 @@ void PacketBuffer::StartWriting(const TMap<FString, uint32> &ObjectToColor, cons
 
 void PacketBuffer::DoneWriting()
 {
+  // Swapping buffers
   LockBuffer.lock();
   IsDataReadable = true;
   WriteBuffer.swap(ReadBuffer);
@@ -96,6 +104,7 @@ void PacketBuffer::DoneWriting()
 
 void PacketBuffer::StartReading()
 {
+  // Waits until writing is done
   std::unique_lock<std::mutex> WaitLock(LockRead);
   CVWait.wait(WaitLock, [this] {return IsDataReadable; });
 
