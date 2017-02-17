@@ -382,7 +382,7 @@ void AVisionActor::GenerateColors(const uint32_t NumberOfColors)
       {
         HSVColor.R = ((h * ShiftHue) % MaxHue) * StepHue;
         ObjectColors.Add(HSVColor.HSVToLinearRGB().ToFColor(false));
-        OUT_INFO(TEXT("Added color %d: %d %d %d"), ObjectColors.Num(), ObjectColors.Last().R, ObjectColors.Last().G, ObjectColors.Last().B);
+        OUT_DEBUG(TEXT("Added color %d: %d %d %d"), ObjectColors.Num(), ObjectColors.Last().R, ObjectColors.Last().G, ObjectColors.Last().B);
       }
     }
   }
@@ -448,6 +448,7 @@ bool AVisionActor::ColorAllObjects()
     FString ActorName = ActItr->GetHumanReadableName();
     OUT_INFO(TEXT("Actor with name: %s."), *ActorName);
   }
+  
   
 //   for(TActorIterator<ACharacter> CharItr(GetWorld()); CharItr; ++CharItr)
 //   {
