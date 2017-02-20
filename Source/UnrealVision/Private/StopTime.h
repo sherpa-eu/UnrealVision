@@ -42,7 +42,7 @@ public:
 
   virtual inline ~ScopeTime()
   {
-    OUT_DEBUG(Display, "%s: %f ms.", *Function, Line, *Message, GetTimePassed());
+    OUT_DEBUG(TEXT("%s: %f ms."), *Message, GetTimePassed());
   }
 };
 
