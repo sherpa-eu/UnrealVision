@@ -161,12 +161,13 @@ void AVisionActor::Tick(float DeltaTime)
 
   // Check for framerate
   TimePassed += DeltaTime;
-  if(TimePassed < FrameTime)
+  if(TimePassed < 1.0f / Framerate)
   {
     return;
   }
-  TimePassed -= FrameTime;
+  TimePassed -= 1.0f / Framerate;
   MEASURE_TIME("Tick");
+  OUT_INFO(TEXT("FRAME_RATE: %f"),Framerate)
 
   UpdateComponentTransforms();
 
@@ -224,6 +225,7 @@ void AVisionActor::SetFramerate(const float _Framerate)
   Framerate = _Framerate;
   FrameTime = 1.0f / _Framerate;
   TimePassed = 0;
+  OUT_INFO(TEXT("FRAMERATE SET TO: %f"),Framerate);
 }
 
 void AVisionActor::Pause(const bool _Pause)
