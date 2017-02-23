@@ -447,6 +447,13 @@ bool AVisionActor::ColorAllObjects()
     ++NumberOfActors;
     FString ActorName = ActItr->GetHumanReadableName();
     OUT_INFO(TEXT("Actor with name: %s."), *ActorName);
+
+	for (FName TagItr : ActItr->Tags)
+	{
+		// Copy of the current tag
+		FString CurrTag = TagItr.ToString();
+		OUT_INFO(TEXT("\t\t Has a tag: %s."), *CurrTag);
+	}
   }
   
   
@@ -456,18 +463,23 @@ bool AVisionActor::ColorAllObjects()
 //     FString CharName = CharItr->GetHumanReadableName();
 //     OUT_INFO(TEXT("Character with name: %s."), *CharName);
 //   }
-//   
   OUT_INFO(TEXT("Found %d Actors."), NumberOfActors);
   GenerateColors(NumberOfActors * 2);
-
+  OUT_INFO(TEXT("BAZD MEG MENJEL MAR"));
   for(TActorIterator<AActor> ActItr(GetWorld()); ActItr; ++ActItr)
   {
     FString ActorName = ActItr->GetHumanReadableName();
+	if (ActorName.Compare("SherpaHangGlider") == 0)
+	{
+		OUT_INFO(TEXT("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"));
+		OUT_INFO(TEXT("!!!!!!!!!!!GLIDER SHERPA HERER!!!!!!!!!!!!!"));
+		OUT_INFO(TEXT("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"));
+	}
     if(!ObjectToColor.Contains(ActorName))
     {
       check(ColorsUsed < (uint32)ObjectColors.Num());
       ObjectToColor.Add(ActorName, ColorsUsed);
-      OUT_INFO(TEXT("Adding color %d for object %s."), ColorsUsed, *ActorName);
+      OUT_DEBUG(TEXT("Adding color %d for object %s."), ColorsUsed, *ActorName);
 
       ++ColorsUsed;
     }
