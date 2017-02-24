@@ -453,17 +453,9 @@ bool AVisionActor::ColorAllObjects()
   
   OUT_INFO(TEXT("Found %d Actors."), NumberOfActors);
   GenerateColors(NumberOfActors * 2);
-  OUT_INFO(TEXT("BAZD MEG MENJEL MAR"));
+
   for(TActorIterator<AActor> ActItr(GetWorld()); ActItr; ++ActItr)
   {
-
-    FString ActorName = ActItr->GetHumanReadableName();
-	if (ActorName.Compare("SherpaHangGlider") == 0)
-	{
-		OUT_INFO(TEXT("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"));
-		OUT_INFO(TEXT("!!!!!!!!!!!GLIDER SHERPA HERER!!!!!!!!!!!!!"));
-		OUT_INFO(TEXT("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"));
-	}
     FString ActorName = ActItr->GetName();
     if(!ObjectToColor.Contains(ActorName))
     {
