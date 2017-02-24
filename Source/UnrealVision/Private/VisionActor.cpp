@@ -447,24 +447,18 @@ bool AVisionActor::ColorAllObjects()
   for(TActorIterator<AActor> ActItr(GetWorld()); ActItr; ++ActItr)
   {
     ++NumberOfActors;
-    FString ActorName = ActItr->GetHumanReadableName();
+//     FString ActorName = ActItr->GetHumanReadableName();
+    FString ActorName = ActItr->GetName();
     OUT_INFO(TEXT("Actor with name: %s."), *ActorName);
   }
   
-  
-//   for(TActorIterator<ACharacter> CharItr(GetWorld()); CharItr; ++CharItr)
-//   {
-//     ++NumberOfActors;
-//     FString CharName = CharItr->GetHumanReadableName();
-//     OUT_INFO(TEXT("Character with name: %s."), *CharName);
-//   }
-//   
   OUT_INFO(TEXT("Found %d Actors."), NumberOfActors);
   GenerateColors(NumberOfActors * 2);
 
   for(TActorIterator<AActor> ActItr(GetWorld()); ActItr; ++ActItr)
   {
-    FString ActorName = ActItr->GetHumanReadableName();
+//     FString ActorName = ActItr->GetHumanReadableName();
+    FString ActorName = ActItr->GetName();
     if(!ObjectToColor.Contains(ActorName))
     {
       check(ColorsUsed < (uint32)ObjectColors.Num());
@@ -477,22 +471,6 @@ bool AVisionActor::ColorAllObjects()
     OUT_INFO(TEXT("Coloring object %s."), *ActorName);
     ColorObject(*ActItr, ActorName);
   }
-  
-//   for(TActorIterator<ACharacter> CharItr(GetWorld()); CharItr; ++CharItr)
-//   {
-//     FString ActorName = CharItr->GetHumanReadableName();
-//     if(!ObjectToColor.Contains(ActorName))
-//     {
-//       check(ColorsUsed < (uint32)ObjectColors.Num());
-//       ObjectToColor.Add(ActorName, ColorsUsed);
-//       OUT_INFO(TEXT("Adding color %d for object %s."), ColorsUsed, *ActorName);
-//       ++ColorsUsed;
-//     }
-// 
-//     OUT_INFO(TEXT("Coloring object %s."), *ActorName);
-//     ColorObject(*CharItr, ActorName);
-//   }
-
   return true;
 }
 
