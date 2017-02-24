@@ -30,8 +30,10 @@ public:
 
   // Change the framerate on the fly
   void SetFramerate(const float _Framerate);
+  
   // Pause/resume camera
   void Pause(const bool _Pause = true);
+  
   // Check if paused
   bool IsPaused() const;
 

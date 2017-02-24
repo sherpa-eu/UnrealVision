@@ -161,12 +161,13 @@ void AVisionActor::Tick(float DeltaTime)
 
   // Check for framerate
   TimePassed += DeltaTime;
-  if(TimePassed < FrameTime)
+  if(TimePassed < 1.0f / Framerate)
   {
     return;
   }
-  TimePassed -= FrameTime;
+  TimePassed -= 1.0f / Framerate;
   MEASURE_TIME("Tick");
+  OUT_INFO(TEXT("FRAME_RATE: %f"),Framerate)
 
   UpdateComponentTransforms();
 
@@ -224,6 +225,7 @@ void AVisionActor::SetFramerate(const float _Framerate)
   Framerate = _Framerate;
   FrameTime = 1.0f / _Framerate;
   TimePassed = 0;
+  OUT_INFO(TEXT("FRAMERATE SET TO: %f"),Framerate);
 }
 
 void AVisionActor::Pause(const bool _Pause)
@@ -382,7 +384,7 @@ void AVisionActor::GenerateColors(const uint32_t NumberOfColors)
       {
         HSVColor.R = ((h * ShiftHue) % MaxHue) * StepHue;
         ObjectColors.Add(HSVColor.HSVToLinearRGB().ToFColor(false));
-        OUT_DEBUG(TEXT("Added color %d: %d %d %d"), ObjectColors.Num(), ObjectColors.Last().R, ObjectColors.Last().G, ObjectColors.Last().B);
+        OUT_INFO(TEXT("Added color %d: %d %d %d"), ObjectColors.Num(), ObjectColors.Last().R, ObjectColors.Last().G, ObjectColors.Last().B);
       }
     }
   }
@@ -445,29 +447,16 @@ bool AVisionActor::ColorAllObjects()
   for(TActorIterator<AActor> ActItr(GetWorld()); ActItr; ++ActItr)
   {
     ++NumberOfActors;
-    FString ActorName = ActItr->GetHumanReadableName();
+    FString ActorName = ActItr->GetName();
     OUT_INFO(TEXT("Actor with name: %s."), *ActorName);
-
-	for (FName TagItr : ActItr->Tags)
-	{
-		// Copy of the current tag
-		FString CurrTag = TagItr.ToString();
-		OUT_INFO(TEXT("\t\t Has a tag: %s."), *CurrTag);
-	}
   }
   
-  
-//   for(TActorIterator<ACharacter> CharItr(GetWorld()); CharItr; ++CharItr)
-//   {
-//     ++NumberOfActors;
-//     FString CharName = CharItr->GetHumanReadableName();
-//     OUT_INFO(TEXT("Character with name: %s."), *CharName);
-//   }
   OUT_INFO(TEXT("Found %d Actors."), NumberOfActors);
   GenerateColors(NumberOfActors * 2);
   OUT_INFO(TEXT("BAZD MEG MENJEL MAR"));
   for(TActorIterator<AActor> ActItr(GetWorld()); ActItr; ++ActItr)
   {
+
     FString ActorName = ActItr->GetHumanReadableName();
 	if (ActorName.Compare("SherpaHangGlider") == 0)
 	{
@@ -475,11 +464,12 @@ bool AVisionActor::ColorAllObjects()
 		OUT_INFO(TEXT("!!!!!!!!!!!GLIDER SHERPA HERER!!!!!!!!!!!!!"));
 		OUT_INFO(TEXT("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"));
 	}
+    FString ActorName = ActItr->GetName();
     if(!ObjectToColor.Contains(ActorName))
     {
       check(ColorsUsed < (uint32)ObjectColors.Num());
       ObjectToColor.Add(ActorName, ColorsUsed);
-      OUT_DEBUG(TEXT("Adding color %d for object %s."), ColorsUsed, *ActorName);
+      OUT_INFO(TEXT("Adding color %d for object %s."), ColorsUsed, *ActorName);
 
       ++ColorsUsed;
     }
@@ -487,22 +477,6 @@ bool AVisionActor::ColorAllObjects()
     OUT_INFO(TEXT("Coloring object %s."), *ActorName);
     ColorObject(*ActItr, ActorName);
   }
-  
-//   for(TActorIterator<ACharacter> CharItr(GetWorld()); CharItr; ++CharItr)
-//   {
-//     FString ActorName = CharItr->GetHumanReadableName();
-//     if(!ObjectToColor.Contains(ActorName))
-//     {
-//       check(ColorsUsed < (uint32)ObjectColors.Num());
-//       ObjectToColor.Add(ActorName, ColorsUsed);
-//       OUT_INFO(TEXT("Adding color %d for object %s."), ColorsUsed, *ActorName);
-//       ++ColorsUsed;
-//     }
-// 
-//     OUT_INFO(TEXT("Coloring object %s."), *ActorName);
-//     ColorObject(*CharItr, ActorName);
-//   }
-
   return true;
 }
 
