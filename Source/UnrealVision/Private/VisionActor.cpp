@@ -166,8 +166,8 @@ void AVisionActor::Tick(float DeltaTime)
     return;
   }
   TimePassed -= 1.0f / Framerate;
-  MEASURE_TIME("Tick");
-  OUT_INFO(TEXT("FRAME_RATE: %f"),Framerate)
+  //MEASURE_TIME("Tick");
+  //OUT_INFO(TEXT("FRAME_RATE: %f"),Framerate)
 
   UpdateComponentTransforms();
 
